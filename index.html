@@ -375,7 +375,7 @@
   </nav>
   <div class="header-actions">
     <button class="icon-btn" id="logout-btn" style="display:none" onclick="logout()">🔓 Logout</button>
-    <button class="icon-btn" onclick="showSection('setup-page',this)">⚙ DB</button>
+
     <button class="icon-btn" onclick="toggleTheme()" title="Toggle theme">☀</button>
   </div>
 </header>
@@ -1609,26 +1609,8 @@ function updatePending(teamIdx, playerIdx, field, value) {
   if (arr && arr[playerIdx]) arr[playerIdx][field] = value;
 }
 
-async function saveMatch() {
+function saveMatch() {
   notify('🎮 Demo mode — saving disabled.', 'info');
-}
-  const match = {
-    ...pendingMatchData,
-    id: Date.now().toString(),
-    date: document.getElementById('match-date').value,
-    note: document.getElementById('match-note').value
-  };
-  // Assign teams to players
-  (match.team1_players||[]).forEach(p => p.team = match.team1);
-  (match.team2_players||[]).forEach(p => p.team = match.team2);
-  state.matches.push(match);
-  await saveToBin();
-  saveLocalState();
-  clearUpload();
-  renderAll();
-  notify('Match saved!', 'success');
-  showSection('matches', document.querySelector('nav button:nth-child(2)'));
-  renderMatches();
 }
 
 function cancelReview() {
@@ -1639,30 +1621,10 @@ function cancelReview() {
 // =============================================
 // WALKOVER
 // =============================================
-async function saveWalkover() {
+function saveWalkover() {
   notify('🎮 Demo mode — saving disabled. In live version this records a 20:0 walkover win.', 'info');
 }
-  if (!winner || !loser) { notify('Please enter both teams', 'error'); return; }
-  const match = {
-    id: Date.now().toString(),
-    team1: winner,
-    team2: loser,
-    score1: 20,
-    score2: 0,
-    date: document.getElementById('wo-date').value,
-    note: document.getElementById('wo-note').value,
-    walkover: true,
-    team1_players: [],
-    team2_players: []
-  };
-  state.matches.push(match);
-  await saveToBin();
-  saveLocalState();
-  renderAll();
-  notify('Walkover saved!', 'success');
-  document.getElementById('wo-winner').value = '';
-  document.getElementById('wo-loser').value = '';
-}
+
 
 // =============================================
 // DELETE
@@ -1671,7 +1633,7 @@ function askDelete(id) {
   deleteId = id;
   document.getElementById('delete-modal').classList.add('active');
 }
-async function confirmDelete() {
+function confirmDelete() {
   notify('🎮 Demo mode — deleting disabled.', 'info');
   closeModal('delete-modal');
 }
