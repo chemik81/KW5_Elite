@@ -425,12 +425,9 @@
       <button class="btn btn-outline" onclick="exportData()">📤 Export JSON</button>
       <button class="btn btn-danger" onclick="clearAllData()">🗑 Clear All Data</button>
     </div>
-    <div style="margin-top:16px;">
-      <div class="form-group">
-        <label>Anthropic API Key (stored locally)</label>
-        <input type="password" id="api-key-input" placeholder="sk-ant-...">
-      </div>
-      <button class="btn btn-outline" onclick="saveApiKey()">Save Key</button>
+    <div style="margin-top:16px;padding:14px;background:var(--bg3);border:1px solid var(--border2);border-left:3px solid var(--gold3);border-radius:3px;">
+      <div style="font-size:11px;color:var(--gold);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">🔐 Secure API</div>
+      <div style="font-size:13px;color:var(--text2);">AI analysis is routed through a secure server proxy. The API key is stored on the server and is never exposed in the browser.</div>
     </div>
   </div>
 </section>
@@ -575,8 +572,6 @@ function init() {
   document.getElementById('loading').style.display = 'none';
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('match-date').value = today;
-  const saved = localStorage.getItem('kw5_api_key');
-  if (saved) document.getElementById('api-key-input').value = saved;
   renderStats();
   renderBoxScores();
   updatePills();
@@ -639,6 +634,8 @@ async function checkLogin() {
     isAdmin = true;
     resetAttempts();
     startSession();
+    // Store token for Worker authentication
+    sessionStorage.setItem('kw5_atoken', inputHash);
     updateAdminUI();
     closeModal('login-overlay');
     notify('Admin access granted', 'success');
@@ -658,6 +655,7 @@ function doLogout() {
   clearTimeout(_sessionTimer);
   sessionStorage.removeItem('kw5_admin');
   sessionStorage.removeItem('kw5_st');
+  sessionStorage.removeItem('kw5_atoken');
   updateAdminUI();
   showSection('stats', document.querySelector('nav button'));
   notify('Logged out', 'info');
@@ -894,26 +892,35 @@ function loadImg(file) {
   reader.readAsDataURL(file);
 }
 
+// ============================================================
+// CLOUDFLARE WORKER URL
+// Replace with your Worker URL after deployment
+// ============================================================
+const WORKER_URL = 'https://kw5-elite-proxy.YOUR-SUBDOMAIN.workers.dev';
+
 async function analyzeScreenshot() {
   if (!screenshotB64) { notify('Please upload a screenshot first', 'error'); return; }
-  const apiKey = localStorage.getItem('kw5_api_key');
-  if (!apiKey) { notify('No API key set. Enter it in the Manage Data section below.', 'error'); return; }
+  if (!isAdmin) { notify('Admin access required', 'error'); return; }
+
   const btn = document.getElementById('analyze-btn');
   btn.disabled = true;
   btn.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(0,0,0,0.3);border-top-color:#000;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px;"></span> Analyzing...';
+
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version':'2023-06-01',
-        'anthropic-dangerous-direct-browser-access':'true'
+    // Get session token (hashed password used as bearer token)
+    const adminToken = sessionStorage.getItem('kw5_atoken');
+    if (!adminToken) throw new Error('Session invalid — please log in again');
+
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'X-Admin-Token': adminToken,
       },
       body: JSON.stringify({
-        model:'claude-opus-4-5',
-        max_tokens:4000,
-        messages:[{ role:'user', content:[
+        model:      'claude-opus-4-5',
+        max_tokens: 4000,
+        messages: [{ role:'user', content:[
           { type:'image', source:{ type:'base64', media_type:'image/jpeg', data:screenshotB64 }},
           { type:'text', text:`Analyze this NBA 2K game stats screenshot. Return ONLY valid JSON, no markdown:
 {
@@ -925,8 +932,13 @@ async function analyzeScreenshot() {
         ]}]
       })
     });
+
+    if (res.status === 401) throw new Error('Unauthorized — session may have expired');
+    if (res.status === 403) throw new Error('Access forbidden');
+    if (!res.ok) throw new Error(`Server error: ${res.status}`);
+
     const data = await res.json();
-    if (data.error) throw new Error(data.error.message);
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
     let text = data.content[0].text.trim().replace(/```json|```/g,'').trim();
     const parsed = JSON.parse(text);
     pendingMatch = parsed;
@@ -1070,13 +1082,6 @@ function renderCompare() {
 // ============================================================
 // ADMIN UTILS
 // ============================================================
-function saveApiKey() {
-  const k = document.getElementById('api-key-input').value.trim();
-  if (!k) return;
-  localStorage.setItem('kw5_api_key', k);
-  notify('API key saved', 'success');
-}
-
 function exportData() {
   const blob = new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
   const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
