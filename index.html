@@ -311,11 +311,10 @@
     <button class="active" onclick="showSection('stats',this)">Arena Statistics</button>
     <button onclick="showSection('boxscores',this)">Box Scores</button>
     <button id="admin-nav-btn" onclick="showSection('admin',this)" style="display:none">⚙ Admin</button>
-    <button id="superadmin-nav-btn" onclick="showSection('superadmin',this)" style="display:none">🔑 Super Admin</button>
+    <button id="superadmin-nav-btn" onclick="showSection('superadmin',this)" style="display:none">👑 Super Admin</button>
   </nav>
   <div class="header-right">
     <button class="icon-btn" id="login-btn" onclick="openLoginModal('admin')">🔐 Admin</button>
-    <button class="icon-btn" id="superlogin-btn" onclick="openLoginModal('super')" style="color:var(--gold3)">👑 Super</button>
     <button class="icon-btn admin-active" id="logout-btn" style="display:none" onclick="doLogout()">🔓 Logout</button>
   </div>
 </header>
@@ -883,12 +882,25 @@ function saveState() {
 
 function updateAdminUI() {
   const a = isAdmin, sa = isSuperAdmin;
-  document.getElementById('login-btn').style.display           = a  ? 'none' : '';
-  document.getElementById('superlogin-btn').style.display      = sa ? 'none' : '';
-  document.getElementById('logout-btn').style.display          = a  ? ''     : 'none';
-  document.getElementById('admin-nav-btn').style.display       = a  ? ''     : 'none';
-  document.getElementById('superadmin-nav-btn').style.display  = sa ? ''     : 'none';
+  document.getElementById('login-btn').style.display          = a  ? 'none' : '';
+  document.getElementById('logout-btn').style.display         = a  ? ''     : 'none';
+  document.getElementById('admin-nav-btn').style.display      = a  ? ''     : 'none';
+  // Superadmin nav — hidden element, only shown when logged in as super
+  const saBtn = document.getElementById('superadmin-nav-btn');
+  if (saBtn) saBtn.style.display = sa ? '' : 'none';
 }
+
+// Hidden keyboard shortcut — Ctrl + Shift + K opens Super Admin login
+document.addEventListener('keydown', (e) => {
+  if (e.ctrlKey && e.shiftKey && e.key === 'K') {
+    e.preventDefault();
+    if (isSuperAdmin) {
+      showSection('superadmin', null);
+    } else {
+      openLoginModal('super');
+    }
+  }
+});
 
 // ============================================================
 // NAVIGATION
