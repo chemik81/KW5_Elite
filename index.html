@@ -756,6 +756,7 @@ let sortDir = 'desc';
 let posFilter    = '';
 let pendingMatch  = null;
 let screenshotB64 = null;
+let screenshotMimeType = 'image/jpeg';
 
 // Dynamic worker URL — set by superadmin
 let WORKER_URL = localStorage.getItem('kw5_worker_url')
@@ -1373,6 +1374,7 @@ function handleDrop(e) {
   if(e.dataTransfer.files[0]) loadImg(e.dataTransfer.files[0]);
 }
 function loadImg(file) {
+  screenshotMimeType = file.type || 'image/jpeg';
   const reader = new FileReader();
   reader.onload = e => {
     screenshotB64 = e.target.result.split(',')[1];
@@ -1441,7 +1443,7 @@ async function analyzeScreenshot() {
         model:      'claude-opus-4-5',
         max_tokens: 4000,
         messages: [{ role:'user', content:[
-          { type:'image', source:{ type:'base64', media_type:'image/jpeg', data:screenshotB64 }},
+          { type:'image', source:{ type:'base64', media_type: screenshotMimeType, data:screenshotB64 }},
           { type:'text', text:`Analyze this NBA 2K game stats screenshot and extract all data.${rosterContext}
 
 Return ONLY valid JSON with no markdown, no explanation, no backticks:
