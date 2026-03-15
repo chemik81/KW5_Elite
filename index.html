@@ -311,9 +311,11 @@
     <button class="active" onclick="showSection('stats',this)">Arena Statistics</button>
     <button onclick="showSection('boxscores',this)">Box Scores</button>
     <button id="admin-nav-btn" onclick="showSection('admin',this)" style="display:none">⚙ Admin</button>
+    <button id="superadmin-nav-btn" onclick="showSection('superadmin',this)" style="display:none">🔑 Super Admin</button>
   </nav>
   <div class="header-right">
-    <button class="icon-btn" id="login-btn" onclick="openLogin()">🔐 Admin Login</button>
+    <button class="icon-btn" id="login-btn" onclick="openLoginModal('admin')">🔐 Admin</button>
+    <button class="icon-btn" id="superlogin-btn" onclick="openLoginModal('super')" style="color:var(--gold3)">👑 Super</button>
     <button class="icon-btn admin-active" id="logout-btn" style="display:none" onclick="doLogout()">🔓 Logout</button>
   </div>
 </header>
@@ -476,6 +478,98 @@
   </div>
 </section>
 
+<!-- SUPERADMIN SECTION -->
+<section class="section" id="sec-superadmin">
+
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;padding:14px 18px;background:linear-gradient(90deg,rgba(212,168,67,0.1),transparent);border:1px solid rgba(212,168,67,0.3);border-radius:4px;">
+    <span style="font-size:24px;">👑</span>
+    <div>
+      <div style="font-family:'Bebas Neue';font-size:18px;letter-spacing:2px;color:var(--gold);">Super Admin Panel</div>
+      <div style="font-size:12px;color:var(--text2);">System configuration — visible only to you</div>
+    </div>
+  </div>
+
+  <!-- JSONBin Config -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-title">☁️ Database (JSONBin)</div>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:16px;">
+      Connect a JSONBin database so all match data is stored in the cloud and visible to everyone who visits the page.
+      Get a free account at <a href="https://jsonbin.io" target="_blank" style="color:var(--gold);">jsonbin.io</a>.
+    </p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+      <div class="form-group">
+        <label>Master Key</label>
+        <input type="password" id="sa-master-key" placeholder="$2b$10$..."
+          style="background:var(--bg3);border:1px solid var(--border2);color:var(--white);padding:9px 12px;border-radius:3px;font-size:13px;width:100%;outline:none;"
+          onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border2)'">
+      </div>
+      <div class="form-group">
+        <label>Bin ID</label>
+        <input type="text" id="sa-bin-id" placeholder="6845abc123def456"
+          style="background:var(--bg3);border:1px solid var(--border2);color:var(--white);padding:9px 12px;border-radius:3px;font-size:13px;width:100%;outline:none;"
+          onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border2)'">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-gold" onclick="saveDbConfig()">💾 Save & Connect</button>
+      <button class="btn btn-outline" onclick="testDbConnection()">🔌 Test Connection</button>
+      <button class="btn btn-outline" onclick="syncToDb()">⬆️ Push data to DB</button>
+      <button class="btn btn-outline" onclick="loadFromDb()">⬇️ Pull data from DB</button>
+    </div>
+    <div id="db-status" style="margin-top:12px;font-size:13px;"></div>
+  </div>
+
+  <!-- Worker / Anthropic Config -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-title">🤖 AI Analysis (Cloudflare Worker)</div>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:16px;">
+      The Anthropic API key is stored securely on Cloudflare — never in the browser.
+      Enter your Worker URL here. Deploy <code style="color:var(--gold);background:var(--bg4);padding:2px 6px;border-radius:3px;">worker.js</code> to Cloudflare first.
+    </p>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label>Cloudflare Worker URL</label>
+      <input type="text" id="sa-worker-url" placeholder="https://kw5-elite-proxy.yourname.workers.dev"
+        style="background:var(--bg3);border:1px solid var(--border2);color:var(--white);padding:9px 12px;border-radius:3px;font-size:13px;width:100%;outline:none;"
+        onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border2)'">
+    </div>
+    <button class="btn btn-gold" onclick="saveWorkerUrl()">💾 Save Worker URL</button>
+    <div id="worker-status" style="margin-top:10px;font-size:13px;"></div>
+  </div>
+
+  <!-- Admin Password -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-title">🔐 Change Admin Password</div>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:16px;">
+      Change the password for the regular Admin (KW5 staff). This does NOT change your Super Admin password.
+    </p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+      <div class="form-group">
+        <label>New Admin Password</label>
+        <input type="password" id="sa-new-admin-pass" placeholder="New password"
+          style="background:var(--bg3);border:1px solid var(--border2);color:var(--white);padding:9px 12px;border-radius:3px;font-size:13px;width:100%;outline:none;"
+          onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border2)'">
+      </div>
+      <div class="form-group">
+        <label>Confirm Password</label>
+        <input type="password" id="sa-confirm-admin-pass" placeholder="Repeat password"
+          style="background:var(--bg3);border:1px solid var(--border2);color:var(--white);padding:9px 12px;border-radius:3px;font-size:13px;width:100%;outline:none;"
+          onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border2)'">
+      </div>
+    </div>
+    <button class="btn btn-gold" onclick="changeAdminPassword()">🔑 Update Admin Password</button>
+  </div>
+
+  <!-- Danger Zone -->
+  <div class="card" style="border-top-color:#e74c3c;">
+    <div class="card-title" style="color:var(--white);">⚠️ Danger Zone</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+      <button class="btn btn-outline" onclick="exportData()">📤 Export all data (JSON)</button>
+      <button class="btn btn-danger" onclick="clearAllData()">🗑 Clear all match data</button>
+    </div>
+  </div>
+
+</section>
+
 </main>
 
 <!-- COMPARE MODAL -->
@@ -514,10 +608,10 @@
 <div class="modal-overlay" id="login-overlay">
   <div class="modal" style="max-width:340px;">
     <div class="modal-header">
-      <h3>🔐 Admin Login</h3>
+      <h3 id="login-modal-title">🔐 Login</h3>
       <button class="btn btn-outline" onclick="closeModal('login-overlay')">✕</button>
     </div>
-    <p style="color:var(--text2);font-size:13px;margin-bottom:16px;">Enter your admin password to upload box scores.</p>
+    <p id="login-modal-desc" style="color:var(--text2);font-size:13px;margin-bottom:16px;"></p>
     <div class="form-group">
       <label>Password</label>
       <input type="password" id="login-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')checkLogin()">
@@ -531,111 +625,254 @@
 
 <script>
 // ============================================================
-// STATE
+// STATE & SECURITY
 // ============================================================
+// PASSWORDS (defaults):
+//   Admin:      kw5elite2025   (changeable by SuperAdmin)
+//   SuperAdmin: kw5super2025   (yours only)
 // ============================================================
-// SECURITY CONFIG
-// Password: kw5elite2025  |  Salt + SHA-256 hashed
-// To change password: open console, type:
-//   hashPassword('yournewpassword')  — copy the result into PASS_HASH
-// ============================================================
-const SALT      = 'KW5EliteS3cur3S@lt!2025#x9z';
-const PASS_HASH = 'f95c8af9aaae2aabac477eb1421c3ad7c899832169fca025590570c0c796a542';
-const MAX_ATTEMPTS   = 3;
-const LOCKOUT_MS     = 15 * 60 * 1000; // 15 min lockout
-const SESSION_MS     = 2  * 60 * 60 * 1000; // 2 hr session
+const SALT        = 'KW5EliteS3cur3S@lt!2025#x9z';
+const SA_SALT     = 'KW5Sup3rAdm1nS@lt!#2025$zx9';
+// Default hashes — admin hash can be overridden by superadmin
+let   ADMIN_HASH  = localStorage.getItem('kw5_admin_hash')
+                  || 'f95c8af9aaae2aabac477eb1421c3ad7c899832169fca025590570c0c796a542';
+// SuperAdmin default: kw5super2025
+let   SA_HASH     = localStorage.getItem('kw5_sa_hash')
+                  || '1ff93f80b20e294965372bd8e4ccae883e82325c08178baae03a40fa94b110ec';
 
-let isAdmin = false;
-let state   = { matches: [], roster: [], corrections: {} };
+const MAX_ATTEMPTS = 3;
+const LOCKOUT_MS   = 15 * 60 * 1000;
+const SESSION_MS   = 2  * 60 * 60 * 1000;
+
+let isAdmin      = false;
+let isSuperAdmin = false;
+let loginTarget  = 'admin';
+
+let state = { matches: [], roster: [], corrections: {} };
 let sortCol = 'per';
 let sortDir = 'desc';
-let posFilter   = '';
+let posFilter    = '';
 let pendingMatch  = null;
 let screenshotB64 = null;
 
-// SHA-256 via WebCrypto API
+// Dynamic worker URL — set by superadmin
+let WORKER_URL = localStorage.getItem('kw5_worker_url')
+               || 'https://kw5-elite-proxy.YOUR-SUBDOMAIN.workers.dev';
+
+// ── SHA-256 ──
 async function sha256(msg) {
   const buf  = new TextEncoder().encode(msg);
   const hash = await crypto.subtle.digest('SHA-256', buf);
   return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
-// Call this in console to get hash for a new password
-window.hashPassword = async (pw) => {
-  const h = await sha256(SALT + pw);
-  console.log('%cNew PASS_HASH: ' + h, 'color:#d4a843;font-weight:bold');
-};
+window.hashPassword      = async pw => { const h = await sha256(SALT    + pw); console.log('%cAdmin hash: '      + h, 'color:#d4a843;font-weight:bold'); };
+window.hashSuperPassword = async pw => { const h = await sha256(SA_SALT + pw); console.log('%cSuperAdmin hash: ' + h, 'color:#f0c060;font-weight:bold'); };
 
-// Rate limit helpers
-function getAttempts() {
-  return JSON.parse(localStorage.getItem('kw5_att') || '{"n":0,"t":0}');
-}
-function recordFail() {
-  const d = getAttempts();
-  d.n++; d.t = Date.now();
-  localStorage.setItem('kw5_att', JSON.stringify(d));
-}
-function resetAttempts() { localStorage.removeItem('kw5_att'); }
-function lockedOut() {
-  const d = getAttempts();
+// ── Rate limiting (per role) ──
+function getAttempts(k)  { return JSON.parse(localStorage.getItem(k) || '{"n":0,"t":0}'); }
+function recordFail(k)   { const d=getAttempts(k); d.n++; d.t=Date.now(); localStorage.setItem(k,JSON.stringify(d)); }
+function resetAttempts(k){ localStorage.removeItem(k); }
+function lockedOut(k) {
+  const d = getAttempts(k);
   if (d.n >= MAX_ATTEMPTS) {
     const left = LOCKOUT_MS - (Date.now() - d.t);
-    if (left > 0) return Math.ceil(left/60000); // minutes remaining
-    resetAttempts();
+    if (left > 0) return Math.ceil(left/60000);
+    resetAttempts(k);
   }
   return false;
 }
 
-// Session helpers
+// ── Session ──
 let _sessionTimer = null;
-function startSession() {
+function startSession(role) {
   clearTimeout(_sessionTimer);
-  sessionStorage.setItem('kw5_admin', '1');
+  sessionStorage.setItem('kw5_role', role);
   sessionStorage.setItem('kw5_st', Date.now().toString());
-  _sessionTimer = setTimeout(() => {
-    doLogout();
-    notify('Session expired — logged out automatically', 'info');
-  }, SESSION_MS);
+  _sessionTimer = setTimeout(() => { doLogout(); notify('Session expired — logged out', 'info'); }, SESSION_MS);
 }
 function sessionValid() {
-  if (sessionStorage.getItem('kw5_admin') !== '1') return false;
+  const role  = sessionStorage.getItem('kw5_role');
   const start = parseInt(sessionStorage.getItem('kw5_st') || '0');
-  return (Date.now() - start) < SESSION_MS;
+  if (!role || !start) return null;
+  return (Date.now() - start) < SESSION_MS ? role : null;
+}
+
+// ── Obfuscated storage for sensitive values ──
+async function setEncrypted(k, v) { localStorage.setItem(k, btoa(encodeURIComponent(v).split('').reverse().join(''))); }
+function getEncrypted(k) {
+  const s = localStorage.getItem(k); if (!s) return null;
+  try { return decodeURIComponent(atob(s).split('').reverse().join('')); } catch { return null; }
+}
+
+// ============================================================
+// JSONBIN
+// ============================================================
+async function loadFromDb() {
+  const key = getEncrypted('kw5_mk');
+  const bin = localStorage.getItem('kw5_bin');
+  if (!key || !bin) { setDbStatus('⚠️ No database configured', 'warn'); return false; }
+  try {
+    setDbStatus('⏳ Loading...', 'info');
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${bin}/latest`, { headers: { 'X-Master-Key': key } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const rec = (await res.json()).record;
+    if (rec.matches)     state.matches     = rec.matches;
+    if (rec.roster)      state.roster      = rec.roster;
+    if (rec.corrections) state.corrections = rec.corrections;
+    setDbStatus('✅ Connected — data loaded', 'ok');
+    return true;
+  } catch(e) { setDbStatus('❌ ' + e.message, 'error'); return false; }
+}
+
+async function syncToDb() {
+  const key = getEncrypted('kw5_mk');
+  const bin = localStorage.getItem('kw5_bin');
+  if (!key || !bin) { notify('No database configured — go to Super Admin', 'error'); return; }
+  try {
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${bin}`, {
+      method: 'PUT',
+      headers: { 'Content-Type':'application/json', 'X-Master-Key': key },
+      body: JSON.stringify({ matches: state.matches, roster: state.roster, corrections: state.corrections })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    notify('✅ Saved to cloud', 'success');
+  } catch(e) { notify('❌ Sync failed: ' + e.message, 'error'); }
+}
+
+async function testDbConnection() {
+  const key = getEncrypted('kw5_mk'); const bin = localStorage.getItem('kw5_bin');
+  if (!key || !bin) { setDbStatus('⚠️ Fill in both fields first', 'warn'); return; }
+  setDbStatus('⏳ Testing...', 'info');
+  try {
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${bin}/latest`, { headers: { 'X-Master-Key': key } });
+    res.ok ? setDbStatus('✅ Connection successful!', 'ok') : setDbStatus(`❌ HTTP ${res.status}`, 'error');
+  } catch(e) { setDbStatus('❌ ' + e.message, 'error'); }
+}
+
+function setDbStatus(msg, type) {
+  const el = document.getElementById('db-status'); if (!el) return;
+  const c = { ok:'#4ade80', error:'#e74c3c', warn:'#d4a843', info:'#999' };
+  el.style.color = c[type]||'#999'; el.textContent = msg;
+}
+
+// ============================================================
+// DEMO DATA
+// ============================================================
+function generateDemoData() {
+  const rnd = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
+
+  const players = [
+    ['xXKingSlayerXx','PG'], ['IronBlock99','C'],   ['QuickDraw_7','SG'],
+    ['SkyWalker2K','SF'],    ['StoneWall','PF'],     ['BullRush','PG'],
+    ['NetBurner','SG'],      ['CrownZ','SF'],         ['TowerUp','PF'],
+    ['VaultMan','C'],        ['DragonFire','PG'],     ['ScaleBreak','SG'],
+    ['InfernoCut','SF'],     ['TailWhip','PF'],       ['DragonWall','C'],
+    ['ThunderBolt','PG'],    ['LightningQ','SG'],     ['StormCell','SF'],
+    ['TornadoZ','PF'],       ['CloudBurst','C'],
+  ];
+
+  const roster = players.map(p => p[0]);
+
+  const grades = ['A+','A+','A','A','A','A-','A-','B+','B+','B'];
+
+  function mkPlayer(idx, winner) {
+    const [name, pos] = players[idx];
+    const base = winner ? [20,32] : [10,20];
+    const pts = rnd(base[0], base[1]);
+    const reb = pos==='C'||pos==='PF' ? rnd(7,15) : rnd(2,7);
+    const ast = pos==='PG' ? rnd(6,14) : rnd(1,5);
+    const stl = rnd(0,3); const blk = pos==='C'||pos==='PF' ? rnd(0,4) : rnd(0,2);
+    const to  = rnd(0,4);
+    const cs  = rnd(88,99);
+    const grade = grades[rnd(0,grades.length-1)];
+    const fg  = (rnd(38,62)/100).toFixed(3).slice(1);
+    const tp  = (rnd(28,55)/100).toFixed(3).slice(1);
+    const ft  = (rnd(65,98)/100).toFixed(3).slice(1);
+    return { name, pos, grade, cs, pts, reb, ast, stl, blk, to, fg_pct:fg, tp_pct:tp, ft_pct:ft };
+  }
+
+  // 4 match schedule - pairs of 5 players
+  const schedule = [
+    { date:'2026-02-03', note:'Elite Week 1', t1:[0,1,2,3,4],   t2:[5,6,7,8,9],   w1:true  },
+    { date:'2026-02-10', note:'Elite Week 2', t1:[10,11,12,13,14],t2:[15,16,17,18,19],w1:false},
+    { date:'2026-02-17', note:'Elite Week 3', t1:[0,1,2,3,4],   t2:[10,11,12,13,14],w1:true  },
+    { date:'2026-02-24', note:'Elite Week 4', t1:[5,6,7,8,9],   t2:[15,16,17,18,19],w1:true  },
+    { date:'2026-03-03', note:'Elite Week 5', t1:[0,1,2,3,4],   t2:[15,16,17,18,19],w1:false },
+    { date:'2026-03-10', note:'Elite Week 6', t1:[10,11,12,13,14],t2:[5,6,7,8,9],   w1:true  },
+  ];
+
+  const matches = schedule.map((m, i) => {
+    const s1 = m.w1 ? rnd(78,115) : rnd(60,89);
+    const s2 = m.w1 ? rnd(60,89)  : rnd(78,115);
+    return {
+      id: String(i+1), date: m.date, note: m.note,
+      score1: s1, score2: s2,
+      team1_players: m.t1.map(idx => mkPlayer(idx, m.w1)),
+      team2_players: m.t2.map(idx => mkPlayer(idx, !m.w1)),
+    };
+  });
+
+  return { matches, roster, corrections: {} };
 }
 
 // ============================================================
 // INIT
 // ============================================================
-function init() {
-  loadState();
-  isAdmin = sessionValid();
-  if (!isAdmin) {
-    sessionStorage.removeItem('kw5_admin');
+async function init() {
+  // Try load from DB first, fall back to localStorage
+  const hasBin = localStorage.getItem('kw5_bin') && getEncrypted('kw5_mk');
+  if (hasBin) {
+    const ok = await loadFromDb();
+    if (!ok) loadState(); // fallback to local if DB fails
+  } else {
+    loadState();
+  }
+
+  // Demo data if still empty
+  if (!state.matches.length) {
+    state = generateDemoData();
+    const banner = document.createElement('div');
+    banner.style.cssText = 'background:linear-gradient(90deg,rgba(212,168,67,0.1),rgba(212,168,67,0.05));border-bottom:1px solid rgba(212,168,67,0.2);padding:7px 24px;text-align:center;font-size:12px;color:var(--text2);letter-spacing:1px;font-family:Barlow Condensed,sans-serif;text-transform:uppercase;';
+    banner.innerHTML = '🏆 <strong style="color:var(--gold)">Demo Mode</strong> — Sample data · Upload a real box score to replace';
+    document.querySelector('header').after(banner);
+  }
+
+  // Restore session
+  const role = sessionValid();
+  if (role === 'super') { isSuperAdmin = true; isAdmin = true; }
+  else if (role === 'admin') { isAdmin = true; isSuperAdmin = false; }
+  else {
+    sessionStorage.removeItem('kw5_role');
     sessionStorage.removeItem('kw5_st');
   }
+
   updateAdminUI();
   document.getElementById('loading').style.display = 'none';
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('match-date').value = today;
-  renderStats();
-  renderBoxScores();
-  updatePills();
-  renderRoster();
-  renderCorrections();
+  WORKER_URL = localStorage.getItem('kw5_worker_url') || WORKER_URL;
+  renderStats(); renderBoxScores(); updatePills(); renderRoster(); renderCorrections();
 }
 
 function loadState() {
   const s = localStorage.getItem('kw5elite_data');
-  if (s) state = JSON.parse(s);
+  if (s) { try { state = JSON.parse(s); } catch {} }
 }
 
 function saveState() {
   localStorage.setItem('kw5elite_data', JSON.stringify(state));
+  // Auto-sync to DB if configured
+  const hasBin = localStorage.getItem('kw5_bin') && getEncrypted('kw5_mk');
+  if (hasBin) syncToDb();
 }
 
 function updateAdminUI() {
-  document.getElementById('login-btn').style.display  = isAdmin ? 'none' : '';
-  document.getElementById('logout-btn').style.display = isAdmin ? '' : 'none';
-  document.getElementById('admin-nav-btn').style.display = isAdmin ? '' : 'none';
+  const a = isAdmin, sa = isSuperAdmin;
+  document.getElementById('login-btn').style.display           = a  ? 'none' : '';
+  document.getElementById('superlogin-btn').style.display      = sa ? 'none' : '';
+  document.getElementById('logout-btn').style.display          = a  ? ''     : 'none';
+  document.getElementById('admin-nav-btn').style.display       = a  ? ''     : 'none';
+  document.getElementById('superadmin-nav-btn').style.display  = sa ? ''     : 'none';
 }
 
 // ============================================================
@@ -648,63 +885,113 @@ function showSection(name, btn) {
   if (btn) btn.classList.add('active');
   if (name === 'stats') renderStats();
   if (name === 'boxscores') renderBoxScores();
+  if (name === 'superadmin') fillSuperAdminFields();
 }
 
 // ============================================================
 // LOGIN
 // ============================================================
-function openLogin() {
-  const mins = lockedOut();
-  if (mins) {
-    notify(`Too many failed attempts. Try again in ${mins} minute${mins>1?'s':''}.`, 'error');
-    return;
-  }
+function openLogin() { openLoginModal('admin'); }
+
+function openLoginModal(target) {
+  loginTarget = target;
+  const lockKey = target === 'super' ? 'kw5_sa_att' : 'kw5_att';
+  const mins = lockedOut(lockKey);
+  if (mins) { notify(`Locked out for ${mins} more minute${mins>1?'s':''}`, 'error'); return; }
+  document.getElementById('login-modal-title').textContent = target === 'super' ? '👑 Super Admin' : '🔐 Admin Login';
+  document.getElementById('login-modal-desc').textContent  = target === 'super'
+    ? 'System configuration — your eyes only.' : 'Enter password to upload box scores.';
+  document.getElementById('login-pass').value = '';
   document.getElementById('login-overlay').classList.add('active');
+  setTimeout(() => document.getElementById('login-pass').focus(), 100);
 }
 
 async function checkLogin() {
-  const mins = lockedOut();
-  if (mins) {
-    notify(`Account locked. Try again in ${mins} minute${mins>1?'s':''}.`, 'error');
-    closeModal('login-overlay');
-    return;
-  }
-  const p = document.getElementById('login-pass').value;
-  if (!p) return;
-
-  // Hash the input and compare
-  const inputHash = await sha256(SALT + p);
+  const lockKey    = loginTarget === 'super' ? 'kw5_sa_att' : 'kw5_att';
+  const mins = lockedOut(lockKey);
+  if (mins) { notify(`Locked out for ${mins} more minute${mins>1?'s':''}`, 'error'); closeModal('login-overlay'); return; }
+  const p = document.getElementById('login-pass').value; if (!p) return;
+  const salt = loginTarget === 'super' ? SA_SALT : SALT;
+  const validHash = loginTarget === 'super' ? SA_HASH : ADMIN_HASH;
+  const inputHash = await sha256(salt + p);
   document.getElementById('login-pass').value = '';
-
-  if (inputHash === PASS_HASH) {
-    isAdmin = true;
-    resetAttempts();
-    startSession();
-    // Store token for Worker authentication
-    sessionStorage.setItem('kw5_atoken', inputHash);
-    updateAdminUI();
-    closeModal('login-overlay');
-    notify('Admin access granted', 'success');
-  } else {
-    recordFail();
-    const d = getAttempts();
-    const left = MAX_ATTEMPTS - d.n;
-    if (left <= 0) {
-      notify(`Too many failed attempts. Locked out for 15 minutes.`, 'error');
+  if (inputHash === validHash) {
+    resetAttempts(lockKey);
+    if (loginTarget === 'super') {
+      isSuperAdmin = true; isAdmin = true; startSession('super');
     } else {
-      notify(`Incorrect password. ${left} attempt${left>1?'s':''} remaining.`, 'error');
+      isAdmin = true; isSuperAdmin = false; startSession('admin');
     }
+    sessionStorage.setItem('kw5_atoken', inputHash);
+    updateAdminUI(); closeModal('login-overlay');
+    notify(loginTarget === 'super' ? '👑 Super Admin access granted' : '✅ Admin access granted', 'success');
+    if (loginTarget === 'super') {
+      showSection('superadmin', document.getElementById('superadmin-nav-btn'));
+    }
+  } else {
+    recordFail(lockKey);
+    const left = MAX_ATTEMPTS - getAttempts(lockKey).n;
+    if (left <= 0) notify('Locked out for 15 minutes', 'error');
+    else notify(`Wrong password — ${left} attempt${left>1?'s':''} left`, 'error');
   }
 }
+
 function doLogout() {
-  isAdmin = false;
+  isAdmin = false; isSuperAdmin = false;
   clearTimeout(_sessionTimer);
-  sessionStorage.removeItem('kw5_admin');
+  sessionStorage.removeItem('kw5_role');
   sessionStorage.removeItem('kw5_st');
   sessionStorage.removeItem('kw5_atoken');
   updateAdminUI();
   showSection('stats', document.querySelector('nav button'));
   notify('Logged out', 'info');
+}
+
+// ============================================================
+// SUPERADMIN FUNCTIONS
+// ============================================================
+function fillSuperAdminFields() {
+  const mk  = getEncrypted('kw5_mk');
+  const bin = localStorage.getItem('kw5_bin');
+  const wu  = localStorage.getItem('kw5_worker_url');
+  if (mk  && document.getElementById('sa-master-key'))  document.getElementById('sa-master-key').value  = mk;
+  if (bin && document.getElementById('sa-bin-id'))      document.getElementById('sa-bin-id').value      = bin;
+  if (wu  && document.getElementById('sa-worker-url'))  document.getElementById('sa-worker-url').value  = wu;
+  if (bin && mk) setDbStatus('✅ Database configured', 'ok');
+}
+
+async function saveDbConfig() {
+  const mk  = document.getElementById('sa-master-key').value.trim();
+  const bin = document.getElementById('sa-bin-id').value.trim();
+  if (!mk || !bin) { notify('Fill in both fields', 'error'); return; }
+  await setEncrypted('kw5_mk', mk);
+  localStorage.setItem('kw5_bin', bin);
+  notify('✅ Database config saved', 'success');
+  testDbConnection();
+}
+
+function saveWorkerUrl() {
+  const url = document.getElementById('sa-worker-url').value.trim();
+  if (!url) return;
+  localStorage.setItem('kw5_worker_url', url);
+  WORKER_URL = url;
+  const el = document.getElementById('worker-status');
+  if (el) { el.style.color='#4ade80'; el.textContent='✅ Worker URL saved'; }
+  notify('Worker URL saved', 'success');
+}
+
+async function changeAdminPassword() {
+  const p1 = document.getElementById('sa-new-admin-pass').value;
+  const p2 = document.getElementById('sa-confirm-admin-pass').value;
+  if (!p1) { notify('Enter a new password', 'error'); return; }
+  if (p1 !== p2) { notify('Passwords do not match', 'error'); return; }
+  if (p1.length < 8) { notify('Minimum 8 characters', 'error'); return; }
+  const h = await sha256(SALT + p1);
+  ADMIN_HASH = h;
+  localStorage.setItem('kw5_admin_hash', h);
+  document.getElementById('sa-new-admin-pass').value = '';
+  document.getElementById('sa-confirm-admin-pass').value = '';
+  notify('✅ Admin password updated', 'success');
 }
 
 // ============================================================
