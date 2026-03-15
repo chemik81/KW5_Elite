@@ -1571,11 +1571,6 @@ function bulkAddRoster() {
   notify(`Added ${added} player${added!==1?'s':''} to roster`, 'success');
 }
 
-function removeRosterPlayer(name) {
-  state.roster = state.roster.filter(r => r !== name);
-  saveState(); renderRoster();
-}
-
 function renderRoster() {
   const el = document.getElementById('roster-list');
   if (!el) return;
@@ -1583,13 +1578,18 @@ function renderRoster() {
     el.innerHTML = '<span style="font-size:13px;color:var(--text3);">No players added yet.</span>';
     return;
   }
-  el.innerHTML = [...state.roster].sort().map(name => `
+  el.innerHTML = [...state.roster].sort().map((name, i) => `
     <span style="display:inline-flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border2);border-radius:3px;padding:5px 10px;font-size:13px;font-weight:600;">
       ${name}
-      <button onclick="removeRosterPlayer('${name.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">
+      <button data-idx="${i}" onclick="removeRosterPlayer(this.dataset.idx)"
         style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;line-height:1;padding:0;transition:color .2s;"
         onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='var(--text3)'">✕</button>
     </span>`).join('');
+}
+
+function removeRosterPlayer(idx) {
+  state.roster.splice(parseInt(idx), 1);
+  saveState(); renderRoster();
 }
 
 // ============================================================
@@ -1620,12 +1620,12 @@ function renderCorrections() {
     return;
   }
   el.innerHTML = `<div style="display:flex;flex-direction:column;gap:6px;margin-top:8px;">
-    ${keys.map(k => `
+    ${keys.map((k, i) => `
       <div style="display:flex;align-items:center;gap:10px;background:var(--bg3);border:1px solid var(--border2);border-radius:3px;padding:8px 12px;font-size:13px;">
         <span style="color:#f97316;font-weight:700;flex:1;">${k}</span>
         <span style="color:var(--text3);">→</span>
         <span style="color:#4ade80;font-weight:700;flex:1;">${state.corrections[k]}</span>
-        <button onclick="removeCorrection('${k.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')"
+        <button data-key="${i}" onclick="removeCorrection(Object.keys(state.corrections)[this.dataset.key])"
           style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;transition:color .2s;"
           onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='var(--text3)'">✕</button>
       </div>`).join('')}
