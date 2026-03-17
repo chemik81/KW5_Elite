@@ -1415,7 +1415,10 @@ function handleDrop(e) {
   if(e.dataTransfer.files[0]) loadImg(e.dataTransfer.files[0]);
 }
 function loadImg(file) {
-  screenshotMimeType = file.type || 'image/jpeg';
+  const SUPPORTED = ['image/jpeg','image/png','image/gif','image/webp'];
+  const rawType = file.type || 'image/jpeg';
+  // Anthropic supports: jpeg, png, gif, webp
+  screenshotMimeType = SUPPORTED.includes(rawType) ? rawType : 'image/jpeg';
   const reader = new FileReader();
   reader.onload = e => {
     screenshotB64 = e.target.result.split(',')[1];
