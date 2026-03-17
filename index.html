@@ -2337,11 +2337,15 @@ function generateShareCard() {
 
   drawShareCard(_shareCardData);
   document.getElementById('share-overlay').classList.add('active');
-  // Show native share button only if supported (mobile browsers)
+  // Show native share button if Web Share API available
   const shareBtn = document.getElementById('share-native-btn');
   const hintEl   = document.getElementById('share-hint');
   if (shareBtn) {
-    if (navigator.share && navigator.canShare) {
+    // Check if sharing files is supported (works on mobile Chrome/Safari)
+    const testBlob = new Blob([''], { type: 'image/png' });
+    const testFile = new File([testBlob], 'test.png', { type: 'image/png' });
+    const canShareFiles = !!(navigator.canShare && navigator.canShare({ files: [testFile] }));
+    if (canShareFiles) {
       shareBtn.style.display = 'inline-flex';
       if (hintEl) hintEl.textContent = 'Tap Share to send directly to Discord, Twitter etc.';
     } else {
