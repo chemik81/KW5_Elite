@@ -2375,17 +2375,45 @@ function drawShareCard(d) {
   canvas.height = H;
   const ctx = canvas.getContext('2d');
 
+  // ── Detect theme ─────────────────────────────────────────────
+  const isLight = document.body.classList.contains('light');
+  const T = isLight ? {
+    bg1: '#f0efe8', bg2: '#ffffff', bg3: '#e8e6de',
+    text: '#111108', text2: '#555540', text3: '#999980',
+    cardBg: '#e8e6de', statBg: 'rgba(0,0,0,0.06)',
+    statBorder: 'rgba(0,0,0,0.1)', statText: '#111108',
+    divLine: 'rgba(0,0,0,0.12)',
+    bottomBg: 'rgba(0,0,0,0.06)', bottomBorder: 'rgba(212,168,67,0.3)',
+    watermark: 'rgba(120,90,20,0.5)', urlText: 'rgba(0,0,0,0.3)',
+    diagLine: 'rgba(0,0,0,0.03)', glowColor: 'rgba(212,168,67,0.06)',
+    ringGrad1: '#b8882a', ringGrad2: '#8b6914',
+    csBg: 'rgba(212,168,67,0.12)', csBorder: 'rgba(212,168,67,0.3)',
+    perBg: 'rgba(59,130,246,0.1)', perBorder: 'rgba(59,130,246,0.3)',
+  } : {
+    bg1: '#0a0b0e', bg2: '#111318', bg3: '#0a0b0e',
+    text: '#ffffff', text2: '#cccccc', text3: 'rgba(255,255,255,0.4)',
+    cardBg: '#111318', statBg: 'rgba(255,255,255,0.04)',
+    statBorder: 'rgba(255,255,255,0.08)', statText: '#ffffff',
+    divLine: 'rgba(212,168,67,0.3)',
+    bottomBg: 'rgba(212,168,67,0.06)', bottomBorder: 'rgba(212,168,67,0.15)',
+    watermark: 'rgba(212,168,67,0.45)', urlText: 'rgba(255,255,255,0.25)',
+    diagLine: 'rgba(212,168,67,0.06)', glowColor: 'rgba(212,168,67,0.08)',
+    ringGrad1: '#d4a843', ringGrad2: '#8b6914',
+    csBg: 'rgba(212,168,67,0.08)', csBorder: 'rgba(212,168,67,0.25)',
+    perBg: 'rgba(59,130,246,0.08)', perBorder: 'rgba(59,130,246,0.25)',
+  };
+
   // ── Background ──────────────────────────────────────────────
   const bgGrad = ctx.createLinearGradient(0, 0, W, H);
-  bgGrad.addColorStop(0,   '#0a0b0e');
-  bgGrad.addColorStop(0.5, '#111318');
-  bgGrad.addColorStop(1,   '#0a0b0e');
+  bgGrad.addColorStop(0,   T.bg1);
+  bgGrad.addColorStop(0.5, T.bg2);
+  bgGrad.addColorStop(1,   T.bg3);
   ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, W, H);
 
   // diagonal accent lines
   ctx.save();
-  ctx.strokeStyle = 'rgba(212,168,67,0.06)';
+  ctx.strokeStyle = T.diagLine;
   ctx.lineWidth = 1;
   for (let i = -H; i < W + H; i += 40) {
     ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i + H, H); ctx.stroke();
@@ -2401,7 +2429,7 @@ function drawShareCard(d) {
 
   // subtle right glow
   const glowGrad = ctx.createRadialGradient(W, H/2, 0, W, H/2, 400);
-  glowGrad.addColorStop(0,   'rgba(212,168,67,0.08)');
+  glowGrad.addColorStop(0,   T.glowColor);
   glowGrad.addColorStop(1,   'rgba(212,168,67,0)');
   ctx.fillStyle = glowGrad;
   ctx.fillRect(0, 0, W, H);
@@ -2434,10 +2462,10 @@ function drawShareCard(d) {
   ctx.textAlign = 'left';
   // Shadow
   ctx.shadowColor = 'rgba(212,168,67,0.3)';
-  ctx.shadowBlur  = 20;
+  ctx.shadowBlur  = isLight ? 0 : 20;
   const nameFontSize = d.playerName.length > 14 ? 52 : d.playerName.length > 10 ? 62 : 72;
   ctx.font = `900 ${nameFontSize}px 'Bebas Neue', Arial`;
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = T.text;
   ctx.fillText(d.playerName.toUpperCase(), 28, 115);
   ctx.shadowBlur = 0;
   ctx.restore();
@@ -2446,7 +2474,7 @@ function drawShareCard(d) {
   ctx.save();
   ctx.textAlign = 'left';
   ctx.font = '600 14px Arial';
-  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.fillStyle = T.text2;
   ctx.fillText(d.gp + ' GAMES  ·  SEASON STATS', 28, 138);
   ctx.restore();
 
@@ -2455,13 +2483,13 @@ function drawShareCard(d) {
   ctx.save();
   // outer ring
   const ringGrad = ctx.createLinearGradient(cx-cr, cy-cr, cx+cr, cy+cr);
-  ringGrad.addColorStop(0, '#d4a843');
-  ringGrad.addColorStop(1, '#8b6914');
+  ringGrad.addColorStop(0, T.ringGrad1);
+  ringGrad.addColorStop(1, T.ringGrad2);
   ctx.strokeStyle = ringGrad;
   ctx.lineWidth = 3;
   ctx.beginPath(); ctx.arc(cx, cy, cr, 0, Math.PI*2); ctx.stroke();
   // inner fill
-  ctx.fillStyle = 'rgba(212,168,67,0.12)';
+  ctx.fillStyle = T.csBg;
   ctx.beginPath(); ctx.arc(cx, cy, cr-2, 0, Math.PI*2); ctx.fill();
   // grade text
   ctx.font = `900 ${d.avgGrade.length>1?38:46}px 'Bebas Neue', Arial`;
@@ -2478,7 +2506,7 @@ function drawShareCard(d) {
   ctx.save();
   const divGrad = ctx.createLinearGradient(28, 0, W - 28, 0);
   divGrad.addColorStop(0,   '#d4a843');
-  divGrad.addColorStop(0.5, 'rgba(212,168,67,0.3)');
+  divGrad.addColorStop(0.5, T.divLine);
   divGrad.addColorStop(1,   'rgba(212,168,67,0)');
   ctx.strokeStyle = divGrad;
   ctx.lineWidth = 1;
@@ -2508,7 +2536,7 @@ function drawShareCard(d) {
     const by = startY;
     // box bg
     ctx.save();
-    ctx.fillStyle = s.gold ? 'rgba(212,168,67,0.12)' : 'rgba(255,255,255,0.04)';
+    ctx.fillStyle = s.gold ? 'rgba(212,168,67,0.15)' : T.statBg;
     roundRect(ctx, bx, by, boxW, boxH, 5);
     ctx.fill();
     if (s.gold) {
@@ -2519,12 +2547,12 @@ function drawShareCard(d) {
     }
     // label
     ctx.font = '600 9px Arial';
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fillStyle = T.text3;
     ctx.textAlign = 'center';
     ctx.fillText(s.lbl, bx + boxW/2, by + 18);
     // value
     ctx.font = `900 ${s.val.length > 4 ? 20 : 26}px 'Bebas Neue', Arial`;
-    ctx.fillStyle = s.gold ? '#d4a843' : '#ffffff';
+    ctx.fillStyle = s.gold ? '#d4a843' : T.statText;
     ctx.textBaseline = 'alphabetic';
     ctx.fillText(s.val, bx + boxW/2, by + 54);
     ctx.restore();
@@ -2536,10 +2564,10 @@ function drawShareCard(d) {
 
   // CS block
   ctx.save();
-  ctx.fillStyle = 'rgba(212,168,67,0.08)';
+  ctx.fillStyle = T.csBg;
   roundRect(ctx, 28, blockY, blockW2, blockH2, 6);
   ctx.fill();
-  ctx.strokeStyle = 'rgba(212,168,67,0.25)';
+  ctx.strokeStyle = T.csBorder;
   ctx.lineWidth = 1;
   roundRect(ctx, 28, blockY, blockW2, blockH2, 6);
   ctx.stroke();
@@ -2556,10 +2584,10 @@ function drawShareCard(d) {
 
   // PER block
   ctx.save();
-  ctx.fillStyle = 'rgba(59,130,246,0.08)';
+  ctx.fillStyle = T.perBg;
   roundRect(ctx, 28 + blockW2 + 16, blockY, blockW2, blockH2, 6);
   ctx.fill();
-  ctx.strokeStyle = 'rgba(59,130,246,0.25)';
+  ctx.strokeStyle = T.perBorder;
   ctx.lineWidth = 1;
   roundRect(ctx, 28 + blockW2 + 16, blockY, blockW2, blockH2, 6);
   ctx.stroke();
@@ -2576,17 +2604,17 @@ function drawShareCard(d) {
 
   // ── Bottom bar ───────────────────────────────────────────────
   ctx.save();
-  ctx.fillStyle = 'rgba(212,168,67,0.06)';
+  ctx.fillStyle = T.bottomBg;
   ctx.fillRect(0, H - 44, W, 44);
-  ctx.strokeStyle = 'rgba(212,168,67,0.15)';
+  ctx.strokeStyle = T.bottomBorder;
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(0, H-44); ctx.lineTo(W, H-44); ctx.stroke();
   ctx.font = '500 11px Arial';
-  ctx.fillStyle = 'rgba(212,168,67,0.45)';
+  ctx.fillStyle = T.watermark;
   ctx.textAlign = 'left';
   ctx.fillText('KW5 ELITE LEAGUE', 72, H - 16);
   ctx.textAlign = 'right';
-  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.fillStyle = T.urlText;
   ctx.fillText('kw5.eu', W - 28, H - 16);
   ctx.restore();
 }
