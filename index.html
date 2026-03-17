@@ -1089,13 +1089,7 @@ function fillSuperAdminFields() {
 }
 
 async function saveDbConfig() {
-  const mk  = document.getElementById('sa-master-key').value.trim();
-  const bin = document.getElementById('sa-bin-id').value.trim();
-  if (!mk || !bin) { notify('Fill in both fields', 'error'); return; }
-  await setEncrypted('kw5_mk', mk);
-  localStorage.setItem('kw5_bin', bin);
-  notify('✅ Database config saved', 'success');
-  testDbConnection();
+  notify('Database is now configured securely in Cloudflare Worker — no credentials needed here.', 'info');
 }
 
 function saveWorkerUrl() {
