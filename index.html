@@ -821,33 +821,35 @@ function getEncrypted(k) {
 }
 
 // ============================================================
-// JSONBIN
+// JSONBIN — proxied through Cloudflare Worker
 // ============================================================
 async function loadFromDb() {
-  const key = getEncrypted('kw5_mk');
-  const bin = localStorage.getItem('kw5_bin');
-  if (!key || !bin) { setDbStatus('⚠️ No database configured', 'warn'); return false; }
+  if (!WORKER_URL) { setDbStatus('⚠️ No worker configured', 'warn'); return false; }
   try {
     setDbStatus('⏳ Loading...', 'info');
-    const res = await fetch(`https://api.jsonbin.io/v3/b/${bin}/latest`, { headers: { 'X-Master-Key': key } });
+    const adminToken = localStorage.getItem('kw5_admin_hash') || ADMIN_HASH;
+    const res = await fetch(WORKER_URL + '?action=db-load', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken },
+      body: JSON.stringify({})
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const rec = (await res.json()).record;
-    if (rec.matches)     state.matches     = rec.matches;
-    if (rec.roster)      state.roster      = rec.roster;
-    if (rec.corrections) state.corrections = rec.corrections;
+    if (rec && rec.matches)     state.matches     = rec.matches;
+    if (rec && rec.roster)      state.roster      = rec.roster;
+    if (rec && rec.corrections) state.corrections = rec.corrections;
     setDbStatus('✅ Connected — data loaded', 'ok');
     return true;
   } catch(e) { setDbStatus('❌ ' + e.message, 'error'); return false; }
 }
 
 async function syncToDb() {
-  const key = getEncrypted('kw5_mk');
-  const bin = localStorage.getItem('kw5_bin');
-  if (!key || !bin) { notify('No database configured — go to Super Admin', 'error'); return; }
+  if (!WORKER_URL) { notify('No worker configured', 'error'); return; }
   try {
-    const res = await fetch(`https://api.jsonbin.io/v3/b/${bin}`, {
-      method: 'PUT',
-      headers: { 'Content-Type':'application/json', 'X-Master-Key': key },
+    const adminToken = localStorage.getItem('kw5_admin_hash') || ADMIN_HASH;
+    const res = await fetch(WORKER_URL + '?action=db-save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken },
       body: JSON.stringify({ matches: state.matches, roster: state.roster, corrections: state.corrections })
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -856,11 +858,15 @@ async function syncToDb() {
 }
 
 async function testDbConnection() {
-  const key = getEncrypted('kw5_mk'); const bin = localStorage.getItem('kw5_bin');
-  if (!key || !bin) { setDbStatus('⚠️ Fill in both fields first', 'warn'); return; }
+  if (!WORKER_URL) { setDbStatus('⚠️ No worker configured', 'warn'); return; }
   setDbStatus('⏳ Testing...', 'info');
   try {
-    const res = await fetch(`https://api.jsonbin.io/v3/b/${bin}/latest`, { headers: { 'X-Master-Key': key } });
+    const adminToken = localStorage.getItem('kw5_admin_hash') || ADMIN_HASH;
+    const res = await fetch(WORKER_URL + '?action=db-load', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken },
+      body: JSON.stringify({})
+    });
     res.ok ? setDbStatus('✅ Connection successful!', 'ok') : setDbStatus(`❌ HTTP ${res.status}`, 'error');
   } catch(e) { setDbStatus('❌ ' + e.message, 'error'); }
 }
@@ -936,9 +942,8 @@ function generateDemoData() {
 // ============================================================
 async function init() {
   try {
-    // Try load from DB first, fall back to localStorage
-    const hasBin = localStorage.getItem('kw5_bin') && getEncrypted('kw5_mk');
-    if (hasBin) {
+    // Always try to load from DB via Worker first
+    if (WORKER_URL) {
       const ok = await Promise.race([
         loadFromDb(),
         new Promise(resolve => setTimeout(() => resolve(false), 5000)) // 5s timeout
@@ -951,10 +956,9 @@ async function init() {
     loadState();
   }
 
-  // Demo data only if JSONBin not configured AND no local data AND never had real data
-  const hasBinConfig = localStorage.getItem('kw5_bin') && getEncrypted('kw5_mk');
+  // Demo data only if no real data saved yet
   const hadRealData = localStorage.getItem('kw5_had_real_data');
-  if (!state.matches.length && !hasBinConfig && !hadRealData) {
+  if (!state.matches.length && !hadRealData) {
     state = generateDemoData();
     const banner = document.createElement('div');
     banner.style.cssText = 'background:linear-gradient(90deg,rgba(212,168,67,0.1),rgba(212,168,67,0.05));border-bottom:1px solid rgba(212,168,67,0.2);padding:7px 24px;text-align:center;font-size:12px;color:var(--text2);letter-spacing:1px;font-family:Barlow Condensed,sans-serif;text-transform:uppercase;';
