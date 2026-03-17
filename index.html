@@ -1451,6 +1451,11 @@ Return ONLY valid JSON with no markdown, no explanation, no backticks:
   "team2_players": [...]
 }
 
+COLUMN ORDER on NBA 2K Game Stats screen (left to right):
+GRADE | PTS | REB | AST | STL | BLK | TO | PF | FGM-FGA | 3PM-3PA | FTM-FTA
+
+IMPORTANT - do NOT confuse: STL (steals)=5th col, BLK (blocks)=6th col, TO (turnovers)=7th col. PF (personal fouls)=8th col - DO NOT record PF in JSON.
+
 Rules:
 - team1 and team2: read the team name shown on screen. If not visible use "Team 1" / "Team 2"
 - Copy player names EXACTLY as shown — including numbers, symbols, capitalisation
