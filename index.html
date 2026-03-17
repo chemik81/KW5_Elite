@@ -2109,6 +2109,25 @@ function openPlayerModal(playerName) {
       </div>
     </div>
 
+
+    <!-- Form trend chart -->
+    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:14px 16px;margin-bottom:16px;" id="form-chart-wrap">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">📈 Form Trend</div>
+        <div style="display:flex;gap:6px;" id="chart-metric-btns">
+          ${['PTS','AST','REB','FG%','3P%'].map((m,i) =>
+            `<button onclick="setChartMetric('${m}')" id="cmb-${m.replace('%','pct')}"
+              style="padding:2px 9px;border-radius:3px;border:1px solid ${i===0?'var(--gold)':'var(--border2)'};
+              background:${i===0?'rgba(212,168,67,0.15)':'transparent'};
+              color:${i===0?'var(--gold)':'var(--text3)'};font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;"
+            >${m}</button>`
+          ).join('')}
+        </div>
+      </div>
+      <svg id="form-chart-svg" width="100%" viewBox="0 0 800 160" preserveAspectRatio="none" style="display:block;overflow:visible;"></svg>
+      <div id="form-chart-xlabels" style="display:flex;justify-content:space-between;margin-top:4px;padding:0 2px;"></div>
+    </div>
+
     <!-- Match history -->
     <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Match History <span style="color:var(--text3);font-weight:400;">(click row to open box score)</span></div>
     <div style="overflow-x:auto;">
@@ -2123,9 +2142,134 @@ function openPlayerModal(playerName) {
     </div>
   `;
 
+  // Store for chart
+  window._chartGames = sorted;
+  window._chartMetric = 'PTS';
+  renderFormChart('PTS');
   document.getElementById('player-overlay').classList.add('active');
 }
 
+
+
+// ============================================================
+// FORM TREND CHART
+// ============================================================
+function setChartMetric(metric) {
+  window._chartMetric = metric;
+  // Update button styles
+  ['PTS','AST','REB','FG%','3P%'].forEach(m => {
+    const btn = document.getElementById('cmb-' + m.replace('%','pct'));
+    if (!btn) return;
+    const active = m === metric;
+    btn.style.borderColor  = active ? 'var(--gold)' : 'var(--border2)';
+    btn.style.background   = active ? 'rgba(212,168,67,0.15)' : 'transparent';
+    btn.style.color        = active ? 'var(--gold)' : 'var(--text3)';
+  });
+  renderFormChart(metric);
+}
+
+function renderFormChart(metric) {
+  const svg = document.getElementById('form-chart-svg');
+  const xlabels = document.getElementById('form-chart-xlabels');
+  if (!svg || !window._chartGames) return;
+
+  const games = [...window._chartGames].reverse(); // oldest first
+  if (games.length < 2) {
+    svg.innerHTML = '<text x="400" y="80" text-anchor="middle" fill="#555" font-size="12">Need at least 2 games</text>';
+    return;
+  }
+
+  const metricColors = { 'PTS':'#d4a843','AST':'#3b82f6','REB':'#22c55e','FG%':'#f97316','3P%':'#a855f7' };
+  const color = metricColors[metric] || '#d4a843';
+
+  const getValue = g => {
+    if (metric === 'PTS') return g.pts;
+    if (metric === 'AST') return g.ast;
+    if (metric === 'REB') return g.reb;
+    if (metric === 'FG%') return g.fga > 0 ? Math.round(g.fgm/g.fga*100) : 0;
+    if (metric === '3P%') return g.tpa > 0 ? Math.round(g.tpm/g.tpa*100) : 0;
+    return 0;
+  };
+
+  const vals = games.map(getValue);
+  const maxV = Math.max(...vals, 1);
+  const minV = Math.min(...vals, 0);
+  const range = maxV - minV || 1;
+
+  const W = 800, H = 140, PAD = { l:36, r:10, t:10, b:10 };
+  const chartW = W - PAD.l - PAD.r;
+  const chartH = H - PAD.t - PAD.b;
+  const n = games.length;
+  const xStep = chartW / (n - 1);
+
+  const px = i => PAD.l + i * xStep;
+  const py = v => PAD.t + chartH - ((v - minV) / range * chartH);
+
+  // Build path
+  const points = vals.map((v,i) => [px(i), py(v)]);
+  const pathD  = points.map((p,i) => (i===0?'M':'L') + p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  const areaD  = pathD
+    + ' L' + points[n-1][0].toFixed(1) + ',' + (PAD.t+chartH)
+    + ' L' + PAD.l + ',' + (PAD.t+chartH) + ' Z';
+
+  // Y axis ticks
+  const ticks = 3;
+  const yTickLines = Array.from({length:ticks+1}, (_,i) => {
+    const v = minV + (range/ticks)*i;
+    const y = py(v).toFixed(1);
+    const label = metric.includes('%') ? Math.round(v)+'%' : Math.round(v);
+    return `<line x1="${PAD.l}" y1="${y}" x2="${W-PAD.r}" y2="${y}" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+            <text x="${PAD.l-4}" y="${+y+4}" text-anchor="end" fill="rgba(255,255,255,0.3)" font-size="9">${label}</text>`;
+  }).join('');
+
+  // Grade dots color
+  const gradeColor = g => {
+    const gr = g.grade||'';
+    if (gr.startsWith('A')) return '#d4a843';
+    if (gr.startsWith('B')) return '#3b82f6';
+    if (gr.startsWith('C')) return '#f97316';
+    return '#6b7280';
+  };
+
+  // Dots with tooltips
+  const dots = points.map((p,i) => {
+    const g = games[i];
+    const val = getValue(g);
+    const label = metric.includes('%') ? val+'%' : val;
+    const tip = `${g.date} vs ${g.opp}: ${metric} ${label} (${g.grade})`;
+    return `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="5"
+      fill="${gradeColor(g)}" stroke="${color}" stroke-width="2">
+      <title>${tip}</title>
+    </circle>`;
+  }).join('');
+
+  // Gradient id unique
+  const gid = 'fc_' + metric.replace('%','pct');
+
+  svg.innerHTML = `
+    <defs>
+      <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${color}" stop-opacity="0.35"/>
+        <stop offset="100%" stop-color="${color}" stop-opacity="0.02"/>
+      </linearGradient>
+    </defs>
+    ${yTickLines}
+    <path d="${areaD}" fill="url(#${gid})"/>
+    <path d="${pathD}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    ${dots}
+  `;
+
+  // X labels — show max 8, always first & last
+  if (xlabels) {
+    const step = Math.max(1, Math.ceil(n / 8));
+    const indices = [...new Set([0, ...Array.from({length:n}, (_,i)=>i).filter(i=>i%step===0), n-1])];
+    xlabels.innerHTML = games.map((g,i) =>
+      indices.includes(i)
+        ? `<span style="font-size:9px;color:var(--text3);white-space:nowrap;">${g.date.slice(5)}</span>`
+        : `<span></span>`
+    ).join('');
+  }
+}
 
 // ============================================================
 // SHARE CARD GENERATOR
@@ -2193,6 +2337,18 @@ function generateShareCard() {
 
   drawShareCard(_shareCardData);
   document.getElementById('share-overlay').classList.add('active');
+  // Show native share button only if supported (mobile browsers)
+  const shareBtn = document.getElementById('share-native-btn');
+  const hintEl   = document.getElementById('share-hint');
+  if (shareBtn) {
+    if (navigator.share && navigator.canShare) {
+      shareBtn.style.display = 'inline-flex';
+      if (hintEl) hintEl.textContent = 'Tap Share to send directly to Discord, Twitter etc.';
+    } else {
+      shareBtn.style.display = 'none';
+      if (hintEl) hintEl.textContent = 'Download PNG and share on Discord, Twitter or as stream thumbnail';
+    }
+  }
 }
 
 function drawShareCard(d) {
@@ -2415,6 +2571,36 @@ function drawShareCard(d) {
   ctx.restore();
 }
 
+
+async function nativeShareCard() {
+  const canvas = document.getElementById('share-canvas');
+  const name   = (_shareCardData?.playerName || 'player').replace(/[^a-zA-Z0-9_]/g, '_');
+  try {
+    // Convert canvas to blob
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    const file = new File([blob], `kw5elite_${name}.png`, { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        title: `${_shareCardData?.playerName || 'Player'} — KW5 Elite League`,
+        text:  `Check out ${_shareCardData?.playerName || 'this player'}\'s stats on KW5 Elite League! CS: ${_shareCardData?.csVal} · PER: ${_shareCardData?.perVal}`,
+        files: [file],
+      });
+    } else {
+      // Fallback: share URL only (no file support)
+      await navigator.share({
+        title: `${_shareCardData?.playerName || 'Player'} — KW5 Elite League`,
+        text:  `Check out ${_shareCardData?.playerName || 'this player'}\'s stats on KW5 Elite League! CS: ${_shareCardData?.csVal} · PER: ${_shareCardData?.perVal}`,
+        url:   window.location.href,
+      });
+    }
+  } catch(e) {
+    if (e.name !== 'AbortError') {
+      // User cancelled — silently ignore. Other errors fall back to download.
+      downloadShareCard();
+    }
+  }
+}
+
 function downloadShareCard() {
   const canvas = document.getElementById('share-canvas');
   const name = (_shareCardData?.playerName || 'player').replace(/[^a-zA-Z0-9_]/g,'_');
@@ -2481,10 +2667,11 @@ init();
       <canvas id="share-canvas" style="max-width:100%;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.6);"></canvas>
     </div>
     <div style="display:flex;gap:10px;justify-content:center;padding-bottom:8px;">
+      <button class="btn btn-gold" id="share-native-btn" onclick="nativeShareCard()" style="display:none;">🔗 Share</button>
       <button class="btn btn-gold" onclick="downloadShareCard()">⬇ Download PNG</button>
       <button class="btn btn-outline" onclick="closeModal('share-overlay')">Close</button>
     </div>
-    <p style="text-align:center;font-size:11px;color:var(--text3);margin-top:8px;">Save and share on Discord, Twitter or as stream thumbnail</p>
+    <p style="text-align:center;font-size:11px;color:var(--text3);margin-top:8px;" id="share-hint">Save and share on Discord, Twitter or as stream thumbnail</p>
   </div>
 </div>
 
