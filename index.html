@@ -660,7 +660,10 @@
         <h3 id="player-modal-name" style="font-size:22px;letter-spacing:2px;text-transform:uppercase;"></h3>
         <div id="player-modal-meta" style="font-size:12px;color:var(--text3);margin-top:2px;"></div>
       </div>
-      <button class="btn btn-outline" onclick="closeModal('player-overlay')">✕ Close</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-outline" id="share-card-btn" onclick="generateShareCard()" style="background:rgba(212,168,67,0.15);border-color:var(--gold);color:var(--gold);">📸 Share Card</button>
+        <button class="btn btn-outline" onclick="closeModal('player-overlay')">✕ Close</button>
+      </div>
     </div>
     <div id="player-modal-content"></div>
   </div>
@@ -2065,8 +2068,6 @@ function openPlayerModal(playerName) {
   document.getElementById('player-modal-name').textContent = playerName;
   document.getElementById('player-modal-meta').innerHTML =
     `<span style="background:var(--gold);color:#000;font-size:10px;font-weight:700;padding:1px 6px;border-radius:3px;margin-right:6px;">${pos||'—'}</span>` +
-    `<span style="color:var(--text2);">${teamName}</span>` +
-    `<span style="color:var(--text3);margin:0 8px;">·</span>` +
     `<span>${gp} games</span>`;
 
   document.getElementById('player-modal-content').innerHTML = `
@@ -2125,6 +2126,318 @@ function openPlayerModal(playerName) {
   document.getElementById('player-overlay').classList.add('active');
 }
 
+
+// ============================================================
+// SHARE CARD GENERATOR
+// ============================================================
+let _shareCardData = null; // store last player data for download
+
+function generateShareCard() {
+  // Grab data from currently open player modal
+  const nameEl  = document.getElementById('player-modal-name');
+  const metaEl  = document.getElementById('player-modal-meta');
+  if (!nameEl) return;
+
+  const playerName = nameEl.textContent;
+  const metaText   = metaEl ? metaEl.innerText : '';
+
+  // Re-collect stats from state (same logic as openPlayerModal)
+  const gradeMap = {'A+':100,'A':93,'A-':87,'B+':83,'B':77,'B-':70,'C+':67,'C':63,'C-':57,'D+':53,'D':50,'D-':43,'F':30};
+  const revMap   = [[97,'A+'],[90,'A'],[85,'A-'],[80,'B+'],[73,'B'],[67,'B-'],[64,'C+'],[60,'C'],[54,'C-'],[51,'D+'],[46,'D'],[36,'D-'],[0,'F']];
+
+  const games = [];
+  state.matches.forEach(m => {
+    const chk = (players, team, opp) => {
+      (players||[]).forEach(p => {
+        if (p.name !== playerName) return;
+        games.push({ grade:p.grade||'', pos:p.pos||'', team,
+          pts:+p.pts||0, reb:+p.reb||0, ast:+p.ast||0,
+          stl:+p.stl||0, blk:+p.blk||0, to:+p.to||0,
+          fgm:+p.fgm||0, fga:+p.fga||0,
+          tpm:+p.tpm||0, tpa:+p.tpa||0,
+          ftm:+p.ftm||0, fta:+p.fta||0 });
+      });
+    };
+    chk(m.team1_players, m.team1||'Team 1', m.team2||'Team 2');
+    chk(m.team2_players, m.team2||'Team 2', m.team1||'Team 1');
+  });
+  if (!games.length) { notify('No data', 'error'); return; }
+
+  const gp  = games.length;
+  const avg = k => games.reduce((s,g)=>s+g[k],0)/gp;
+  const sum = k => games.reduce((s,g)=>s+g[k],0);
+
+  const gradeAvgNum = games.reduce((s,g)=>s+(gradeMap[g.grade]||70),0)/gp;
+  const avgGrade    = revMap.find(r=>gradeAvgNum>=r[0])?.[1]||'F';
+  const teamName    = games[games.length-1].team;
+  const pos         = games[games.length-1].pos || '—';
+
+  const totFgm=sum('fgm'),totFga=sum('fga');
+  const totTpm=sum('tpm'),totTpa=sum('tpa');
+  const totFtm=sum('ftm'),totFta=sum('fta');
+  const fgPct = totFga>0 ? ((totFgm/totFga)*100).toFixed(1)+'%' : '—';
+  const tpPct = totTpa>0 ? ((totTpm/totTpa)*100).toFixed(1)+'%' : '—';
+  const ftPct = totFta>0 ? ((totFtm/totFta)*100).toFixed(1)+'%' : '—';
+
+  // CS
+  const gradeNum2  = games.reduce((s,g)=>s+(gradeMap[g.grade]||70),0)/gp;
+  const gScore     = ((gradeNum2-30)/70)*100;
+  const ppg=avg('pts'),rpg=avg('reb'),apg=avg('ast'),spg=avg('stl'),bpg=avg('blk'),tpg=avg('to');
+  const csVal = (Math.min(ppg/50*100,100)*0.25 + Math.min(spg/4*100,100)*0.20 +
+                 Math.min(bpg/3*100,100)*0.18 + Math.min(rpg/20*100,100)*0.15 +
+                 Math.min(apg/15*100,100)*0.12 + gScore*0.10).toFixed(1);
+  const perVal = (ppg + rpg*1.2 + apg*1.5 + spg*2 + bpg*2 - tpg*1.5).toFixed(1);
+
+  _shareCardData = { playerName, pos, gp, avgGrade,
+    ppg, rpg, apg, spg, bpg, tpg, fgPct, tpPct, ftPct, csVal, perVal };
+
+  drawShareCard(_shareCardData);
+  document.getElementById('share-overlay').classList.add('active');
+}
+
+function drawShareCard(d) {
+  const W = 900, H = 500;
+  const canvas = document.getElementById('share-canvas');
+  canvas.width  = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  // ── Background ──────────────────────────────────────────────
+  const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+  bgGrad.addColorStop(0,   '#0a0b0e');
+  bgGrad.addColorStop(0.5, '#111318');
+  bgGrad.addColorStop(1,   '#0a0b0e');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // diagonal accent lines
+  ctx.save();
+  ctx.strokeStyle = 'rgba(212,168,67,0.06)';
+  ctx.lineWidth = 1;
+  for (let i = -H; i < W + H; i += 40) {
+    ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i + H, H); ctx.stroke();
+  }
+  ctx.restore();
+
+  // gold left bar
+  const barGrad = ctx.createLinearGradient(0, 0, 0, H);
+  barGrad.addColorStop(0, '#d4a843');
+  barGrad.addColorStop(1, '#8b6914');
+  ctx.fillStyle = barGrad;
+  ctx.fillRect(0, 0, 6, H);
+
+  // subtle right glow
+  const glowGrad = ctx.createRadialGradient(W, H/2, 0, W, H/2, 400);
+  glowGrad.addColorStop(0,   'rgba(212,168,67,0.08)');
+  glowGrad.addColorStop(1,   'rgba(212,168,67,0)');
+  ctx.fillStyle = glowGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // ── KW5 ELITE watermark top-right ───────────────────────────
+  ctx.save();
+  ctx.font = 'bold 11px Arial';
+  ctx.fillStyle = 'rgba(212,168,67,0.35)';
+  ctx.letterSpacing = '3px';
+  ctx.textAlign = 'right';
+  ctx.fillText('KW5 ELITE LEAGUE', W - 28, 30);
+  ctx.restore();
+
+  // ── Position badge ──────────────────────────────────────────
+  ctx.save();
+  ctx.fillStyle = 'rgba(212,168,67,0.18)';
+  roundRect(ctx, 28, 28, 44, 24, 4);
+  ctx.fill();
+  ctx.font = 'bold 12px Arial';
+  ctx.fillStyle = '#d4a843';
+  ctx.textAlign = 'center';
+  ctx.fillText(d.pos, 50, 44);
+  ctx.restore();
+
+  // ── Player name ─────────────────────────────────────────────
+  ctx.save();
+  ctx.textAlign = 'left';
+  // Shadow
+  ctx.shadowColor = 'rgba(212,168,67,0.3)';
+  ctx.shadowBlur  = 20;
+  const nameFontSize = d.playerName.length > 14 ? 52 : d.playerName.length > 10 ? 62 : 72;
+  ctx.font = `900 ${nameFontSize}px 'Bebas Neue', Arial`;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(d.playerName.toUpperCase(), 28, 115);
+  ctx.shadowBlur = 0;
+  ctx.restore();
+
+  // ── Team name ────────────────────────────────────────────────
+  ctx.save();
+  ctx.textAlign = 'left';
+  ctx.font = '600 14px Arial';
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.fillText(d.gp + ' GAMES  ·  SEASON STATS', 28, 138);
+  ctx.restore();
+
+  // ── Grade circle (large, top right area) ─────────────────────
+  const cx = W - 90, cy = 95, cr = 58;
+  ctx.save();
+  // outer ring
+  const ringGrad = ctx.createLinearGradient(cx-cr, cy-cr, cx+cr, cy+cr);
+  ringGrad.addColorStop(0, '#d4a843');
+  ringGrad.addColorStop(1, '#8b6914');
+  ctx.strokeStyle = ringGrad;
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(cx, cy, cr, 0, Math.PI*2); ctx.stroke();
+  // inner fill
+  ctx.fillStyle = 'rgba(212,168,67,0.12)';
+  ctx.beginPath(); ctx.arc(cx, cy, cr-2, 0, Math.PI*2); ctx.fill();
+  // grade text
+  ctx.font = `900 ${d.avgGrade.length>1?38:46}px 'Bebas Neue', Arial`;
+  ctx.fillStyle = '#d4a843';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(d.avgGrade, cx, cy);
+  ctx.font = '500 10px Arial';
+  ctx.fillStyle = 'rgba(212,168,67,0.6)';
+  ctx.fillText('AVG GRADE', cx, cy + cr + 14);
+  ctx.restore();
+
+  // ── Divider line ─────────────────────────────────────────────
+  ctx.save();
+  const divGrad = ctx.createLinearGradient(28, 0, W - 28, 0);
+  divGrad.addColorStop(0,   '#d4a843');
+  divGrad.addColorStop(0.5, 'rgba(212,168,67,0.3)');
+  divGrad.addColorStop(1,   'rgba(212,168,67,0)');
+  ctx.strokeStyle = divGrad;
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(28, 162); ctx.lineTo(W - 28, 162); ctx.stroke();
+  ctx.restore();
+
+  // ── Stat boxes row ───────────────────────────────────────────
+  const stats = [
+    { lbl:'PTS', val: d.ppg.toFixed(1), gold:true },
+    { lbl:'REB', val: d.rpg.toFixed(1) },
+    { lbl:'AST', val: d.apg.toFixed(1) },
+    { lbl:'STL', val: d.spg.toFixed(1) },
+    { lbl:'BLK', val: d.bpg.toFixed(1) },
+    { lbl:'TO',  val: d.tpg.toFixed(1) },
+    { lbl:'FG%', val: d.fgPct },
+    { lbl:'3P%', val: d.tpPct },
+    { lbl:'FT%', val: d.ftPct },
+  ];
+
+  const boxW = 86, boxH = 72, boxGap = 10;
+  const totalW = stats.length * boxW + (stats.length-1) * boxGap;
+  const startX = (W - totalW) / 2;
+  const startY = 178;
+
+  stats.forEach((s, i) => {
+    const bx = startX + i*(boxW+boxGap);
+    const by = startY;
+    // box bg
+    ctx.save();
+    ctx.fillStyle = s.gold ? 'rgba(212,168,67,0.12)' : 'rgba(255,255,255,0.04)';
+    roundRect(ctx, bx, by, boxW, boxH, 5);
+    ctx.fill();
+    if (s.gold) {
+      ctx.strokeStyle = 'rgba(212,168,67,0.4)';
+      ctx.lineWidth = 1;
+      roundRect(ctx, bx, by, boxW, boxH, 5);
+      ctx.stroke();
+    }
+    // label
+    ctx.font = '600 9px Arial';
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.textAlign = 'center';
+    ctx.fillText(s.lbl, bx + boxW/2, by + 18);
+    // value
+    ctx.font = `900 ${s.val.length > 4 ? 20 : 26}px 'Bebas Neue', Arial`;
+    ctx.fillStyle = s.gold ? '#d4a843' : '#ffffff';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(s.val, bx + boxW/2, by + 54);
+    ctx.restore();
+  });
+
+  // ── CS & PER blocks ──────────────────────────────────────────
+  const blockY = 275, blockH2 = 130;
+  const blockW2 = (W - 28*2 - 16) / 2;
+
+  // CS block
+  ctx.save();
+  ctx.fillStyle = 'rgba(212,168,67,0.08)';
+  roundRect(ctx, 28, blockY, blockW2, blockH2, 6);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(212,168,67,0.25)';
+  ctx.lineWidth = 1;
+  roundRect(ctx, 28, blockY, blockW2, blockH2, 6);
+  ctx.stroke();
+  ctx.font = '600 10px Arial';
+  ctx.fillStyle = 'rgba(212,168,67,0.7)';
+  ctx.textAlign = 'center';
+  ctx.fillText('COMPOSITE SCORE', 28 + blockW2/2, blockY + 24);
+  ctx.font = "900 56px 'Bebas Neue', Arial";
+  ctx.fillStyle = '#d4a843';
+  ctx.shadowColor = 'rgba(212,168,67,0.4)';
+  ctx.shadowBlur = 12;
+  ctx.fillText(d.csVal, 28 + blockW2/2, blockY + 88);
+  ctx.restore();
+
+  // PER block
+  ctx.save();
+  ctx.fillStyle = 'rgba(59,130,246,0.08)';
+  roundRect(ctx, 28 + blockW2 + 16, blockY, blockW2, blockH2, 6);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(59,130,246,0.25)';
+  ctx.lineWidth = 1;
+  roundRect(ctx, 28 + blockW2 + 16, blockY, blockW2, blockH2, 6);
+  ctx.stroke();
+  ctx.font = '600 10px Arial';
+  ctx.fillStyle = 'rgba(59,130,246,0.8)';
+  ctx.textAlign = 'center';
+  ctx.fillText('PER (HOLLINGER)', 28 + blockW2 + 16 + blockW2/2, blockY + 24);
+  ctx.font = "900 56px 'Bebas Neue', Arial";
+  ctx.fillStyle = '#3b82f6';
+  ctx.shadowColor = 'rgba(59,130,246,0.4)';
+  ctx.shadowBlur = 12;
+  ctx.fillText(d.perVal, 28 + blockW2 + 16 + blockW2/2, blockY + 88);
+  ctx.restore();
+
+  // ── Bottom bar ───────────────────────────────────────────────
+  ctx.save();
+  ctx.fillStyle = 'rgba(212,168,67,0.06)';
+  ctx.fillRect(0, H - 44, W, 44);
+  ctx.strokeStyle = 'rgba(212,168,67,0.15)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, H-44); ctx.lineTo(W, H-44); ctx.stroke();
+  ctx.font = '500 11px Arial';
+  ctx.fillStyle = 'rgba(212,168,67,0.5)';
+  ctx.textAlign = 'left';
+  ctx.fillText('KW5 ELITE LEAGUE', 28, H - 16);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.fillText('kw5.eu', W - 28, H - 16);
+  ctx.restore();
+}
+
+function downloadShareCard() {
+  const canvas = document.getElementById('share-canvas');
+  const name = (_shareCardData?.playerName || 'player').replace(/[^a-zA-Z0-9_]/g,'_');
+  const a = document.createElement('a');
+  a.download = `kw5elite_${name}.png`;
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y);
+  ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+  ctx.lineTo(x+w, y+h-r);
+  ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  ctx.lineTo(x+r, y+h);
+  ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+  ctx.lineTo(x, y+r);
+  ctx.quadraticCurveTo(x, y, x+r, y);
+  ctx.closePath();
+}
+
 function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 
 document.querySelectorAll('.modal-overlay').forEach(o => {
@@ -2156,5 +2469,24 @@ if (savedHero) setHeroImage(savedHero);
 // ============================================================
 init();
 </script>
+
+<!-- SHARE CARD OVERLAY -->
+<div class="modal-overlay" id="share-overlay" style="z-index:10000;">
+  <div class="modal" style="max-width:520px;background:var(--bg2);">
+    <div class="modal-header">
+      <h3 style="font-size:16px;letter-spacing:2px;">📸 Share Card</h3>
+      <button class="btn btn-outline" onclick="closeModal('share-overlay')">✕</button>
+    </div>
+    <div style="text-align:center;padding:8px 0 16px;">
+      <canvas id="share-canvas" style="max-width:100%;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.6);"></canvas>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:center;padding-bottom:8px;">
+      <button class="btn btn-gold" onclick="downloadShareCard()">⬇ Download PNG</button>
+      <button class="btn btn-outline" onclick="closeModal('share-overlay')">Close</button>
+    </div>
+    <p style="text-align:center;font-size:11px;color:var(--text3);margin-top:8px;">Save and share on Discord, Twitter or as stream thumbnail</p>
+  </div>
+</div>
+
 </body>
 </html>
