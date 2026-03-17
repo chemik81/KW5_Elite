@@ -1119,7 +1119,7 @@ function getAggregates(matches) {
     process(m.team1_players);
     process(m.team2_players);
   });
-  return Object.values(map).map(p => {
+  const players = Object.values(map).map(p => {
     const g = p.gp || 1;
     p.ppg = p.pts/g; p.rpg = p.reb/g; p.apg = p.ast/g;
     p.spg = p.stl/g; p.bpg = p.blk/g; p.tpg = p.to/g;
@@ -1132,16 +1132,18 @@ function getAggregates(matches) {
     p.tp_str = p.tpa > 0 ? `${p.tpm}/${p.tpa}` : '—';
     p.ft_str = p.fta > 0 ? `${p.ftm}/${p.fta}` : '—';
     p.per = p.ppg + p.rpg*1.2 + p.apg*1.5 + p.spg*2 + p.bpg*2 - p.tpg*1.5;
-    // Composite Score: PTS(25%) + STL(20%) + BLK(18%) + REB(15%) + AST(12%) + Grade(10%)
-    // Grade normalized to 0-10 scale so it doesn't dominate
-    const gradeVal = p.grades.length
-      ? p.grades.reduce((sum,g) => sum + gradeToNum(g), 0) / p.grades.length
-      : 70;
-    const gradeNorm = (gradeVal - 30) / 7; // maps F(30)→0, A+(100)→10
-    p.csa = (p.ppg * 0.25) + (p.spg * 0.20) + (p.bpg * 0.18) + (p.rpg * 0.15) + (p.apg * 0.12) + (gradeNorm * 1.0);
+    // CS — każda statystyka znormalizowana do 0-100, wynik końcowy 0-100
+    const gradeNum   = p.grades.length ? p.grades.reduce((s,g) => s + gradeToNum(g), 0) / p.grades.length : 70;
+    const gradeScore = ((gradeNum - 30) / 70) * 100;                  // skala 30-100 → 0-100
+    const ptsScore   = Math.min((p.ppg / 50)  * 100, 100);            // max referencyjny: 50 PPG
+    const stlScore   = Math.min((p.spg / 4)   * 100, 100);            // max: 4 SPG
+    const blkScore   = Math.min((p.bpg / 3)   * 100, 100);            // max: 3 BPG
+    const rebScore   = Math.min((p.rpg / 20)  * 100, 100);            // max: 20 RPG
+    const astScore   = Math.min((p.apg / 15)  * 100, 100);            // max: 15 APG
+    p.csa = ptsScore*0.25 + stlScore*0.20 + blkScore*0.18 + rebScore*0.15 + astScore*0.12 + gradeScore*0.10;
     return p;
   });
-}
+  return players;
 
 // ============================================================
 // RENDER STATS TABLE
