@@ -908,7 +908,6 @@ function loadState() {
 
 function saveState() {
   localStorage.setItem('kw5elite_data', JSON.stringify(state));
-  // Never sync demo data to DB
   if (WORKER_URL) syncToDb();
 }
 
@@ -1346,12 +1345,21 @@ function handleDrop(e) {
   if(e.dataTransfer.files[0]) loadImg(e.dataTransfer.files[0]);
 }
 function loadImg(file) {
-  const SUPPORTED = ['image/jpeg','image/png','image/gif','image/webp'];
-  const rawType = file.type || 'image/jpeg';
-  // Anthropic supports: jpeg, png, gif, webp
-  screenshotMimeType = SUPPORTED.includes(rawType) ? rawType : 'image/jpeg';
   const reader = new FileReader();
   reader.onload = e => {
+    const arr = new Uint8Array(e.target.result.slice(0, 8));
+    // Detect real format from magic bytes — ignore file extension
+    if (arr[0] === 0xFF && arr[1] === 0xD8) {
+      screenshotMimeType = 'image/jpeg';
+    } else if (arr[0] === 0x89 && arr[1] === 0x50 && arr[2] === 0x4E && arr[3] === 0x47) {
+      screenshotMimeType = 'image/png';
+    } else if (arr[0] === 0x47 && arr[1] === 0x49 && arr[2] === 0x46) {
+      screenshotMimeType = 'image/gif';
+    } else if (arr[0] === 0x52 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x46) {
+      screenshotMimeType = 'image/webp';
+    } else {
+      screenshotMimeType = file.type || 'image/jpeg';
+    }
     screenshotB64 = e.target.result.split(',')[1];
     const img = document.getElementById('preview-img');
     img.src = e.target.result; img.style.display = 'block';
@@ -1824,7 +1832,6 @@ function clearAllData() {
   if (!confirm('Delete ALL match data? Roster and corrections will be kept.')) return;
   state.matches = [];
   localStorage.setItem('kw5elite_data', JSON.stringify(state));
-  // Explicitly sync empty matches to DB so demo can't come back
   if (WORKER_URL) syncToDb();
   renderStats(); renderBoxScores(); updatePills();
   notify('All match data cleared', 'info');
