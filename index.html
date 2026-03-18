@@ -1509,9 +1509,14 @@ Return ONLY valid JSON with no markdown, no explanation, no backticks:
 }
 
 COLUMN ORDER on NBA 2K Game Stats screen (left to right):
-GRADE | PTS | REB | AST | STL | BLK | TO | PF | FGM-FGA | 3PM-3PA | FTM-FTA
+GRADE | PTS | REB | AST | STL | BLK | FOULS | TO | FGM-FGA | 3PM-3PA | FTM-FTA
 
-IMPORTANT - do NOT confuse: STL (steals)=5th col, BLK (blocks)=6th col, TO (turnovers)=7th col, PF (personal fouls)=8th col. Record PF as "pf" in JSON.
+IMPORTANT - column positions:
+- STL (steals) = 5th column
+- BLK (blocks) = 6th column
+- FOULS (personal fouls) = 7th column — record as "pf" in JSON
+- TO (turnovers) = 8th column — usually small number 0,1,2,3
+Do NOT swap FOULS and TO — FOULS comes BEFORE TO on screen.
 
 Rules:
 - team1 and team2: read the team name shown on screen. If not visible use "Team 1" / "Team 2"
