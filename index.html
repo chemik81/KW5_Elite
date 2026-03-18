@@ -1204,8 +1204,8 @@ function renderStats() {
     { key:'apg',    label:'AST',    sortable:true },
     { key:'spg',    label:'STL',    sortable:true },
     { key:'bpg',    label:'BLK',    sortable:true },
-    { key:'tpg',    label:'TO',     sortable:true },
     { key:'fpg',    label:'PF',     sortable:true },
+    { key:'tpg',    label:'TO',     sortable:true },
     { key:'fg_pct', label:'FG%',    sortable:true },
     { key:'tp_pct', label:'3P%',    sortable:true },
     { key:'ft_pct', label:'FT%',    sortable:true },
@@ -1234,8 +1234,8 @@ function renderStats() {
         <td>${(p.apg||0).toFixed(1)}</td>
         <td>${(p.spg||0).toFixed(1)}</td>
         <td>${(p.bpg||0).toFixed(1)}</td>
-        <td>${(p.tpg||0).toFixed(1)}</td>
         <td>${(p.fpg||0).toFixed(1)}</td>
+        <td>${(p.tpg||0).toFixed(1)}</td>
         <td>${p.fg_pct && p.fg_pct!=='—' ? p.fg_pct+'%' : '—'}</td>
         <td>${p.tp_pct && p.tp_pct!=='—' ? p.tp_pct+'%' : '—'}</td>
         <td>${p.ft_pct && p.ft_pct!=='—' ? p.ft_pct+'%' : '—'}</td>
@@ -1339,7 +1339,7 @@ function renderPlayerDetailTable(players, label) {
     <div style="font-family:'Bebas Neue';font-size:16px;letter-spacing:2px;color:var(--gold);margin-bottom:8px;">${label}</div>
     <div style="overflow-x:auto;">
       <table style="width:100%;font-size:12px;border-collapse:collapse;">
-        <thead><tr>${['Player','POS','GRD','PTS','REB','AST','STL','BLK','TO','PF','FGM/FGA','3PM/3PA','FTM/FTA'].map(h=>`<th style="padding:6px 8px;color:var(--text3);border-bottom:1px solid var(--border2);text-align:${h==='Player'?'left':'center'};font-size:10px;text-transform:uppercase;letter-spacing:1px;white-space:nowrap;">${h}</th>`).join('')}</tr></thead>
+        <thead><tr>${['Player','POS','GRD','PTS','REB','AST','STL','BLK','PF','TO','FGM/FGA','3PM/3PA','FTM/FTA'].map(h=>`<th style="padding:6px 8px;color:var(--text3);border-bottom:1px solid var(--border2);text-align:${h==='Player'?'left':'center'};font-size:10px;text-transform:uppercase;letter-spacing:1px;white-space:nowrap;">${h}</th>`).join('')}</tr></thead>
         <tbody>${rows.map(p=>`<tr>
           <td style="padding:6px 8px;font-weight:700;font-family:'Barlow Condensed';letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;">${p.name||''}</td>
           <td style="text-align:center;padding:4px;color:var(--text2);font-size:11px;">${p.pos||''}</td>
@@ -1349,8 +1349,8 @@ function renderPlayerDetailTable(players, label) {
           <td style="text-align:center;padding:4px;">${p.ast||0}</td>
           <td style="text-align:center;padding:4px;">${p.stl||0}</td>
           <td style="text-align:center;padding:4px;">${p.blk||0}</td>
-          <td style="text-align:center;padding:4px;">${p.to||0}</td>
           <td style="text-align:center;padding:4px;">${p.pf||0}</td>
+          <td style="text-align:center;padding:4px;">${p.to||0}</td>
           <td style="text-align:center;padding:4px;white-space:nowrap;">${p.fgStr}<span style="color:var(--text3);font-size:10px;">${p.fgPct}</span></td>
           <td style="text-align:center;padding:4px;white-space:nowrap;">${p.tpStr}<span style="color:var(--text3);font-size:10px;">${p.tpPct}</span></td>
           <td style="text-align:center;padding:4px;white-space:nowrap;">${p.ftStr}<span style="color:var(--text3);font-size:10px;">${p.ftPct}</span></td>
@@ -1502,21 +1502,25 @@ Return ONLY valid JSON with no markdown, no explanation, no backticks:
   "score1": 85,
   "score2": 72,
   "team1_players": [
-    {"name":"ExactGamertag","pos":"PG","grade":"A+","pts":25,"reb":5,"ast":8,"stl":2,"blk":0,"to":3,"pf":2,
+    {"name":"ExactGamertag","pos":"PG","grade":"A+","pts":25,"reb":5,"ast":8,"stl":2,"blk":0,"pf":2,"to":3,
      "fgm":6,"fga":15,"tpm":2,"tpa":6,"ftm":2,"fta":2}
   ],
   "team2_players": [...]
 }
 
-COLUMN ORDER on NBA 2K Game Stats screen (left to right):
-GRADE | PTS | REB | AST | STL | BLK | FOULS | TO | FGM-FGA | 3PM-3PA | FTM-FTA
+CRITICAL - COLUMN ORDER on NBA 2K Game Stats screen (left to right):
+GRD | PTS | REB | AST | STL | BLK | FOULS | TO | FGM/FGA | 3PM/3PA | FTM/FTA
+         col1  col2  col3  col4  col5  col6    col7   col8
 
-IMPORTANT - column positions:
-- STL (steals) = 5th column
-- BLK (blocks) = 6th column
-- FOULS (personal fouls) = 7th column — record as "pf" in JSON
-- TO (turnovers) = 8th column — usually small number 0,1,2,3
-Do NOT swap FOULS and TO — FOULS comes BEFORE TO on screen.
+COLUMN RULES - read very carefully:
+- col5 = STL = steals → save as "stl". Usually 0,1,2,3
+- col6 = BLK = blocks → save as "blk". Usually 0,1,2. BLK is typically LOW (0 or 1 for most players)
+- col7 = FOULS → save as "pf". This is the column LABELLED "FOULS" on screen. Typically 1,2,3,4
+- col8 = TO = turnovers → save as "to". Usually 0,1,2,3
+
+WARNING: The column header says "FOULS" not "PF". Do NOT read FOULS value as BLK.
+BLK (blocks) is almost always 0 or 1. If you see BLK > 3 for a single player you are probably reading the wrong column.
+FOULS comes BEFORE TO on the 2K screen.
 
 Rules:
 - team1 and team2: read the team name shown on screen. If not visible use "Team 1" / "Team 2"
@@ -1575,7 +1579,7 @@ function showReview(data) {
         <thead><tr>
           <th style="text-align:left;min-width:160px;">Name</th>
           <th>POS</th><th>GRD</th><th>PTS</th><th>REB</th>
-          <th>AST</th><th>STL</th><th>BLK</th><th>TO</th><th>PF</th>
+          <th>AST</th><th>STL</th><th>BLK</th><th>PF</th><th>TO</th>
           <th>FGM/FGA</th><th>3PM/3PA</th><th>FTM/FTA</th>
         </tr></thead>
         <tbody>${players.map((p,pi) => {
@@ -1610,8 +1614,8 @@ function showReview(data) {
             <td><input type="number" value="${p.ast||0}" oninput="updateP(${idx},${pi},'ast',this.value)"></td>
             <td><input type="number" value="${p.stl||0}" oninput="updateP(${idx},${pi},'stl',this.value)"></td>
             <td><input type="number" value="${p.blk||0}" oninput="updateP(${idx},${pi},'blk',this.value)"></td>
-            <td><input type="number" value="${p.to||0}" oninput="updateP(${idx},${pi},'to',this.value)"></td>
             <td><input type="number" value="${p.pf||0}" oninput="updateP(${idx},${pi},'pf',this.value)"></td>
+            <td><input type="number" value="${p.to||0}" oninput="updateP(${idx},${pi},'to',this.value)"></td>
             <td><input type="text" value="${fgVal}" style="width:56px" placeholder="6/15"
               oninput="parseShotInput(${idx},${pi},'fg',this.value)"></td>
             <td><input type="text" value="${tpVal}" style="width:56px" placeholder="2/6"
